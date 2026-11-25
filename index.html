@@ -1,0 +1,179 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="author" content="piercer" />
+  <title>Calculadora de Taxas &amp; Ganhos — Tebex</title>
+  <meta name="description" content="Calcule taxas da plataforma Tebex (FiveM 15% ou Padrão 5%), taxas de gateway (PayPal, Cartão, PIX), preço ideal e lucro líquido em USD e BRL." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="container topbar-inner">
+      <div>
+        <h1>Calculadora Tebex — Taxas &amp; Ganhos</h1>
+        <p class="subtitle">Simule vendas em FiveM/RedM (15%), Minecraft/Rust (5%), gateway e conversão para Reais</p>
+      </div>
+      <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+        <button id="resetBtn" class="btn btn-secondary" type="button">Resetar</button>
+        <button id="printBtn" class="btn btn-secondary" type="button">PDF</button>
+        <button id="copyBtn" class="btn btn-primary" type="button">Copiar resumo</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container main-grid">
+    <section class="card">
+      <div class="tabs">
+        <button class="tab active" data-mode="sell" type="button">Preço → Líquido</button>
+        <button class="tab" data-mode="reverse" type="button">Quanto Cobrar</button>
+      </div>
+
+      <div class="field">
+        <label for="ecosystem">Ecossistema (Taxa da Plataforma)</label>
+        <select id="ecosystem" class="input">
+          <option value="15">FiveM / RedM (15%)</option>
+          <option value="5">Padrão — Minecraft / Rust / GMod (5%)</option>
+          <option value="custom">Personalizado</option>
+        </select>
+      </div>
+
+      <div id="customPlatformWrap" class="field" hidden>
+        <label for="platformFeePct">Taxa da Plataforma (%)</label>
+        <input id="platformFeePct" class="input mono" type="number" step="0.1" min="0" max="50" value="15" />
+      </div>
+
+      <div class="field">
+        <label for="gatewayPreset">Método de Pagamento (Gateway)</label>
+        <select id="gatewayPreset" class="input">
+          <option value="paypal">PayPal via Tebex (2.49% + $0.40)</option>
+          <option value="card">Cartão / Checkout (3.50% + $0.30)</option>
+          <option value="pix">PIX / Regional (1.50% + $0.00)</option>
+          <option value="custom">Personalizado</option>
+        </select>
+      </div>
+
+      <div class="row-2">
+        <div class="field">
+          <label for="gwPct">Taxa Gateway (%)</label>
+          <input id="gwPct" class="input mono" type="number" step="0.01" min="0" max="30" value="2.49" />
+        </div>
+        <div class="field">
+          <label for="gwFixed">Taxa Fixa (USD)</label>
+          <input id="gwFixed" class="input mono" type="number" step="0.01" min="0" max="10" value="0.40" />
+        </div>
+      </div>
+
+      <div id="sellFields">
+        <div class="row-2">
+          <div class="field">
+            <label for="salePrice">Preço do Produto (USD)</label>
+            <input id="salePrice" class="input mono" type="number" step="0.5" min="0.5" value="25.00" />
+          </div>
+          <div class="field">
+            <label for="salesCount">Vendas / mês</label>
+            <input id="salesCount" class="input mono" type="number" step="1" min="1" value="30" />
+          </div>
+        </div>
+      </div>
+
+      <div id="reverseFields" hidden>
+        <div class="field">
+          <label for="targetNet">Quanto você quer receber líquido? (USD)</label>
+          <input id="targetNet" class="input mono" type="number" step="0.5" min="0.5" value="20.00" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="usdToBrl">Cotação USD → BRL (R$)</label>
+        <div class="input-row">
+          <input id="usdToBrl" class="input mono" type="number" step="0.01" min="0.1" value="5.75" />
+          <button id="fetchRateBtn" class="btn btn-secondary" type="button">Atualizar</button>
+        </div>
+        <span id="rateNote" class="micro-note"></span>
+      </div>
+
+      <label class="check">
+        <input id="includePlus" type="checkbox" />
+        <span>Descontar assinatura Tebex Plus ($15.00/mês) do total</span>
+      </label>
+    </section>
+
+    <section class="results-col">
+      <div class="kpi-grid">
+        <article class="card kpi highlight">
+          <span class="kpi-label">Líquido por Venda</span>
+          <strong id="outNetUnit" class="kpi-value mono">$0.00</strong>
+          <span id="outNetBrlUnit" class="kpi-sub mono">R$ 0,00</span>
+        </article>
+        <article class="card kpi">
+          <span class="kpi-label">Total de Taxas (Unidade)</span>
+          <strong id="outTotalFeeUnit" class="kpi-value mono red">$0.00</strong>
+          <span id="outFeeBreakdown" class="kpi-sub mono">Plat: $0.00 • Gw: $0.00</span>
+        </article>
+        <article class="card kpi">
+          <span class="kpi-label">Líquido Mensal Estimado</span>
+          <strong id="outMonthlyUsd" class="kpi-value mono accent">$0.00</strong>
+          <span id="outMonthlyMeta" class="kpi-sub mono">30 vendas</span>
+        </article>
+        <article class="card kpi">
+          <span class="kpi-label">Estimativa em Reais (Mês)</span>
+          <strong id="outMonthlyBrl" class="kpi-value mono">R$ 0,00</strong>
+          <span id="outBrlRateSub" class="kpi-sub mono">1 USD = R$ 5,75</span>
+        </article>
+      </div>
+
+      <div class="card" style="display:grid; grid-template-columns:130px 1fr; gap:1rem; align-items:center;">
+        <svg id="donutSvg" viewBox="0 0 120 120" width="120" height="120" aria-label="Divisão da venda"></svg>
+        <div>
+          <h2 style="margin-bottom:0.4rem;">Divisão da Venda</h2>
+          <p id="donutLegend" class="kpi-sub mono" style="line-height:1.8;"></p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="vis-head">
+          <h2>Divisão de cada Venda</h2>
+          <span id="grossBadge" class="badge mono">Bruto: $25.00</span>
+        </div>
+        <div class="split-bar">
+          <div id="barNet" class="seg-net" style="width:80%">80%</div>
+          <div id="barPlat" class="seg-plat" style="width:15%">15%</div>
+          <div id="barGw" class="seg-gw" style="width:5%">5%</div>
+        </div>
+        <div class="legend mono">
+          <span><i class="dot net"></i>Você recebe</span>
+          <span><i class="dot plat"></i>Plataforma Tebex</span>
+          <span><i class="dot gw"></i>Gateway</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Projeção por Volume de Vendas</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Vendas</th>
+                <th>Bruto (USD)</th>
+                <th>Taxas (USD)</th>
+                <th>Líquido (USD)</th>
+                <th>Líquido (BRL)</th>
+              </tr>
+            </thead>
+            <tbody id="projBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+  <script src='./piercer_i18n.js'></script>
+</body>
+</html>
